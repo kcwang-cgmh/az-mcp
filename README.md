@@ -151,23 +151,38 @@ npm run dev
 
 ### 在 Visual Studio 2022 中整合 MCP Server
 
-1. 於 Visual Studio 2022 上方選單點選「工具」>「外部工具...」。
-2. 點選「新增」，填寫如下：
-   - **標題**：Azure DevOps MCP Server
-   - **命令**：
-     - 若全域安裝：`az-mcp`
-     - 或填入 MCP Server 的完整路徑（如 `C:\Users\你的帳號\AppData\Roaming\npm\az-mcp.cmd` 或專案內 `node build/index.js`）
-   - **引數**：無需填寫，或依需求加入自訂參數
-   - **起始目錄**：專案根目錄（如 `$(SolutionDir)`）
-3. 若需指定環境變數，建議於啟動前先設定好 `.env` 檔案，或於命令前加上 `set` 指令（Windows 範例）：
+Visual Studio 2022 17.14 版（或更新）已原生支援 MCP 伺服器，可直接於 Copilot 代理程式模式下連線與管理。
 
-   ```pwsh
-   set AZURE_DEVOPS_URL=https://your-devops-server.com && az-mcp
-   ```
+#### 步驟說明
 
-4. 儲存後，即可於「工具」選單中直接啟動 MCP Server。
+1. 建立 MCP 組態檔：於方案根目錄（或 `%USERPROFILE%` 全域）建立 `.mcp.json` 或 `mcp.json`。
+2. 編輯組態檔，加入 MCP Server 設定。例如：
 
-> Visual Studio 2022 目前不支援像 VS Code 一樣的 MCP 內建偵錯協定，建議以外部工具方式啟動，並搭配 .env 管理敏感資訊。
+  ```json
+  {
+    "servers": {
+      "azure-devops-mcp": {
+        "type": "stdio",
+        "command": "az-mcp"
+      }
+    }
+  }
+  ```
+
+- 若需傳遞環境變數，可加入 `env` 欄位。
+- 若未全域安裝，請將 `command` 改為 `node` 並指定 `args` 為 MCP Server 路徑。
+
+3. 組態檔可放置於下列任一位置，Visual Studio 會自動偵測：
+
+   - `%USERPROFILE%\.mcp.json`（全域）
+   - `<SOLUTIONDIR>\.vs\mcp.json`（僅限該方案）
+   - `<SOLUTIONDIR>\.mcp.json`（建議原始碼控管）
+   - `<SOLUTIONDIR>\.vscode\mcp.json`（跨 VS Code/VS 共用）
+
+4. 於 Visual Studio 啟動方案後，Copilot Chat 視窗右上角「Ask」下拉選單選擇「Agent」，即可選用自訂 MCP Server。
+5. 首次使用時，若工具需權限，請依提示授權。
+
+> 詳細官方說明請參考：[Visual Studio 使用 MCP 伺服器（預覽）](https://learn.microsoft.com/zh-tw/visualstudio/ide/mcp-servers?view=vs-2022)
 
 ---
 
