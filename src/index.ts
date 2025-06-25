@@ -21,12 +21,12 @@ const WORK_ITEM_TYPES = {
     feature: "Feature",
     pbi: "Product Backlog Item"
   },
-  zh: {
+  "zh-tw": {
     bug: "bug",
     task: "工作",
     userStory: "使用者故事",
     feature: "功能",
-    pbi: "產品代辦項目"
+    pbi: "產品待辦項目"
   }
 };
 
