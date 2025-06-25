@@ -1,0 +1,40 @@
+{
+  "name": "az-mcp",
+  "version": "1.0.0",
+  "description": "Azure DevOps MCP Server - 整合 Azure DevOps Server 的 Model Context Protocol 伺服器",
+  "main": "build/index.js",
+  "bin": {
+    "az-mcp": "./build/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/index.js",
+    "dev": "tsc && node build/index.js",
+    "clean": "rimraf build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "azure",
+    "devops",
+    "mcp",
+    "model-context-protocol",
+    "工作項目"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "files": [
+    "build"
+  ],
+  "devDependencies": {
+    "@types/node": "^24.0.4",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.13.1",
+    "axios": "^1.10.0",
+    "dotenv": "^16.5.0",
+    "zod": "^3.25.67"
+  }
+}
