@@ -60,8 +60,24 @@ AZURE_DEVOPS_ORGANIZATION=your-organization
 AZURE_DEVOPS_PROJECT=your-project
 AZURE_DEVOPS_TOKEN=your-personal-access-token
 API_VERSION=7.0
+LANGUAGE=en
 DEBUG=false
 ```
+
+#### 環境變數說明
+
+- `AZURE_DEVOPS_URL`: Azure DevOps Server 的 URL
+- `AZURE_DEVOPS_ORGANIZATION`: 組織名稱
+- `AZURE_DEVOPS_PROJECT`: 專案名稱  
+- `AZURE_DEVOPS_TOKEN`: Personal Access Token
+- `API_VERSION`: API 版本（預設 7.0）
+- `LANGUAGE`: 語言設定（預設 en，可設為 zh）
+- `DEBUG`: 除錯模式（預設 false）
+
+#### 語言設定說明
+
+當 `LANGUAGE=en` 時，工作項目類型提示為：Bug, Task, User Story, Feature, Product Backlog Item
+當 `LANGUAGE=zh` 時，工作項目類型提示為：bug, 工作, 使用者故事, 功能, 產品代辦項目
 
 ### 5. 建構專案
 
@@ -138,6 +154,7 @@ npm run dev
         "AZURE_DEVOPS_PROJECT": "your-project",
         "AZURE_DEVOPS_TOKEN": "your-personal-access-token",
         "API_VERSION": "7.0",
+        "LANGUAGE": "en",
         "DEBUG": "false"
       }
     }

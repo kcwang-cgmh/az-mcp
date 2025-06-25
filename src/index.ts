@@ -10,11 +10,37 @@ import { z } from "zod";
 // 載入環境變數
 dotenv.config();
 
+// 語言設定和工作項目類型對應
+const LANGUAGE = process.env.LANGUAGE || "en";
+
+const WORK_ITEM_TYPES = {
+  en: {
+    bug: "Bug",
+    task: "Task",
+    userStory: "User Story",
+    feature: "Feature",
+    pbi: "Product Backlog Item"
+  },
+  zh: {
+    bug: "bug",
+    task: "工作",
+    userStory: "使用者故事",
+    feature: "功能",
+    pbi: "產品代辦項目"
+  }
+};
+
+// 取得工作項目類型提示
+function getWorkItemTypeHint(): string {
+  const types = WORK_ITEM_TYPES[LANGUAGE as keyof typeof WORK_ITEM_TYPES] || WORK_ITEM_TYPES.en;
+  return `工作項目類型（例如：${Object.values(types).join(', ')}）`;
+}
+
 // Azure DevOps API 客戶端介面
 interface AzureDevOpsClient {
   getWorkItems(query?: string): Promise<WorkItem[]>;
   getWorkItem(id: number): Promise<WorkItem>;
-  createWorkItem(workItemType: string, title: string, description?: string, assignedTo?: string): Promise<WorkItem>;
+  createWorkItem(workItemType: string, title: string, description?: string, assignedTo?: string, acceptanceCriteria?: string): Promise<WorkItem>;
   updateWorkItem(id: number, updates: WorkItemUpdate[]): Promise<WorkItem>;
   queryWorkItems(wiql: string): Promise<WorkItemQueryResult>;
   getWorkItemsBatch(ids: number[]): Promise<WorkItem[]>;
@@ -40,6 +66,7 @@ interface WorkItem {
     "System.IterationPath": string;
     "Microsoft.VSTS.Common.Priority"?: number;
     "Microsoft.VSTS.Common.Severity"?: string;
+    "Microsoft.VSTS.Common.AcceptanceCriteria"?: string;
     [key: string]: any;
   };
   _links?: any;
@@ -74,7 +101,7 @@ class AzureDevOpsClientImpl implements AzureDevOpsClient {
     const token = process.env.AZURE_DEVOPS_TOKEN;
     this.organization = process.env.AZURE_DEVOPS_ORGANIZATION || "";
     this.project = process.env.AZURE_DEVOPS_PROJECT || "";
-    const apiVersion = process.env.API_VERSION || "7.0";
+    const apiVersion = process.env.API_VERSION || "6.0";
 
     if (!url || !token || !this.organization || !this.project) {
       throw new Error("缺少必要的環境變數: AZURE_DEVOPS_URL, AZURE_DEVOPS_TOKEN, AZURE_DEVOPS_ORGANIZATION, AZURE_DEVOPS_PROJECT");
@@ -118,7 +145,8 @@ class AzureDevOpsClientImpl implements AzureDevOpsClient {
       const response = await this.client.get(`/wit/workitems`, {
         params: {
           ids: ids.join(","),
-          "$expand": "Fields"
+          "$expand": "Fields",
+          "api-version": "6.0"
         }
       });
 
@@ -133,7 +161,8 @@ class AzureDevOpsClientImpl implements AzureDevOpsClient {
     try {
       const response = await this.client.get(`/wit/workitems/${id}`, {
         params: {
-          "$expand": "Fields"
+          "$expand": "Fields",
+          "api-version": "6.0"
         }
       });
       return response.data;
@@ -143,7 +172,7 @@ class AzureDevOpsClientImpl implements AzureDevOpsClient {
     }
   }
 
-  async createWorkItem(workItemType: string, title: string, description?: string, assignedTo?: string): Promise<WorkItem> {
+  async createWorkItem(workItemType: string, title: string, description?: string, assignedTo?: string, acceptanceCriteria?: string): Promise<WorkItem> {
     try {
       const fields: WorkItemUpdate[] = [
         {
@@ -169,9 +198,20 @@ class AzureDevOpsClientImpl implements AzureDevOpsClient {
         });
       }
 
+      if (acceptanceCriteria) {
+        fields.push({
+          op: "add",
+          path: "/fields/Microsoft.VSTS.Common.AcceptanceCriteria",
+          value: acceptanceCriteria
+        });
+      }
+
       const response = await this.client.post(`/wit/workitems/$${workItemType}`, fields, {
         headers: {
           "Content-Type": "application/json-patch+json"
+        },
+        params: {
+          "api-version": "6.0"
         }
       });
 
@@ -187,6 +227,9 @@ class AzureDevOpsClientImpl implements AzureDevOpsClient {
       const response = await this.client.patch(`/wit/workitems/${id}`, updates, {
         headers: {
           "Content-Type": "application/json-patch+json"
+        },
+        params: {
+          "api-version": "6.0"
         }
       });
 
@@ -201,6 +244,10 @@ class AzureDevOpsClientImpl implements AzureDevOpsClient {
     try {
       const response = await this.client.post("/wit/wiql", {
         query: wiql
+      }, {
+        params: {
+          "api-version": "6.0"
+        }
       });
 
       return response.data;
@@ -215,7 +262,8 @@ class AzureDevOpsClientImpl implements AzureDevOpsClient {
       const response = await this.client.get(`/wit/workitems`, {
         params: {
           ids: ids.join(","),
-          "$expand": "Fields"
+          "$expand": "Fields",
+          "api-version": "6.0"
         }
       });
       return response.data.value;
@@ -323,7 +371,10 @@ ID: ${fields["System.Id"]}
 最後修改: ${new Date(fields["System.ChangedDate"]).toLocaleString("zh-TW")}
 
 描述:
-${fields["System.Description"] || "無描述"}`;
+${fields["System.Description"] || "無描述"}
+
+驗收條件:
+${fields["Microsoft.VSTS.Common.AcceptanceCriteria"] || "未設定"}`;
 
       return {
         content: [
@@ -351,17 +402,18 @@ server.tool(
   "create-work-item",
   "建立新的工作項目",
   {
-    workItemType: z.string().describe("工作項目類型（例如：Bug, Task, User Story, Feature）"),
+    workItemType: z.string().describe(getWorkItemTypeHint()),
     title: z.string().describe("工作項目標題"),
     description: z.string().optional().describe("工作項目描述"),
-    assignedTo: z.string().optional().describe("指派給的使用者電子郵件或顯示名稱")
+    assignedTo: z.string().optional().describe("指派給的使用者電子郵件或顯示名稱"),
+    acceptanceCriteria: z.string().optional().describe("驗收條件（適用於 Bug, Epic, Feature, Product Backlog Item）")
   },
-  async ({ workItemType, title, description, assignedTo }) => {
+  async ({ workItemType, title, description, assignedTo, acceptanceCriteria }) => {
     try {
-      const workItem = await azureClient.createWorkItem(workItemType, title, description, assignedTo);
+      const workItem = await azureClient.createWorkItem(workItemType, title, description, assignedTo, acceptanceCriteria);
       const fields = workItem.fields;
 
-      const result = `成功建立工作項目:
+      let result = `成功建立工作項目:
 
 ID: ${fields["System.Id"]}
 標題: ${fields["System.Title"]}
@@ -369,6 +421,14 @@ ID: ${fields["System.Id"]}
 狀態: ${fields["System.State"]}
 指派給: ${fields["System.AssignedTo"]?.displayName || "未指派"}
 建立日期: ${new Date(fields["System.CreatedDate"]).toLocaleString("zh-TW")}`;
+
+      // 如果有 acceptance criteria，顯示它
+      if (fields["Microsoft.VSTS.Common.AcceptanceCriteria"]) {
+        result += `
+
+驗收條件:
+${fields["Microsoft.VSTS.Common.AcceptanceCriteria"]}`;
+      }
 
       return {
         content: [
@@ -402,9 +462,10 @@ server.tool(
     state: z.string().optional().describe("新狀態（例如：Active, Resolved, Closed）"),
     assignedTo: z.string().optional().describe("指派給的使用者電子郵件或顯示名稱"),
     priority: z.number().optional().describe("優先順序（1-4）"),
-    severity: z.string().optional().describe("嚴重性（例如：1 - Critical, 2 - High, 3 - Medium, 4 - Low）")
+    severity: z.string().optional().describe("嚴重性（例如：1 - Critical, 2 - High, 3 - Medium, 4 - Low）"),
+    acceptanceCriteria: z.string().optional().describe("驗收條件（適用於 Bug, Epic, Feature, Product Backlog Item）")
   },
-  async ({ id, title, description, state, assignedTo, priority, severity }) => {
+  async ({ id, title, description, state, assignedTo, priority, severity, acceptanceCriteria }) => {
     try {
       const updates: WorkItemUpdate[] = [];
 
@@ -456,6 +517,14 @@ server.tool(
         });
       }
 
+      if (acceptanceCriteria) {
+        updates.push({
+          op: "replace",
+          path: "/fields/Microsoft.VSTS.Common.AcceptanceCriteria",
+          value: acceptanceCriteria
+        });
+      }
+
       if (updates.length === 0) {
         return {
           content: [
@@ -470,7 +539,7 @@ server.tool(
       const workItem = await azureClient.updateWorkItem(id, updates);
       const fields = workItem.fields;
 
-      const result = `成功更新工作項目:
+      let result = `成功更新工作項目:
 
 ID: ${fields["System.Id"]}
 標題: ${fields["System.Title"]}
@@ -478,6 +547,14 @@ ID: ${fields["System.Id"]}
 狀態: ${fields["System.State"]}
 指派給: ${fields["System.AssignedTo"]?.displayName || "未指派"}
 最後修改: ${new Date(fields["System.ChangedDate"]).toLocaleString("zh-TW")}`;
+
+      // 如果有 acceptance criteria，顯示它
+      if (fields["Microsoft.VSTS.Common.AcceptanceCriteria"]) {
+        result += `
+
+驗收條件:
+${fields["Microsoft.VSTS.Common.AcceptanceCriteria"]}`;
+      }
 
       return {
         content: [
