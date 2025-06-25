@@ -171,6 +171,42 @@ npm run dev
 
 ---
 
+### 在 Claude Desktop 中配置 MCP Server
+
+1. 編輯 `claude_desktop_config.json`，於 `mcpServers` 區段加入 Azure DevOps MCP Server 設定。
+2. 範例如下：
+
+#### Windows 範例
+
+```json
+{
+  "mcpServers": {
+    "azure-devops": {
+      "command": "node",
+      "args": ["C:\\完整路徑\\az-mcp\\build\\index.js"]
+    }
+  }
+}
+```
+
+#### macOS/Linux 範例
+
+```json
+{
+  "mcpServers": {
+    "azure-devops": {
+      "command": "node",
+      "args": ["/完整/路徑/az-mcp/build/index.js"]
+    }
+  }
+}
+```
+
+> 請將 `完整路徑` 替換為實際 MCP Server 的 build/index.js 絕對路徑。
+> 建議於專案根目錄設定 `.env` 檔案，或於啟動前設定好相關環境變數。
+
+---
+
 ## 可用工具與 API 參數
 
 ### 1. query-work-items
